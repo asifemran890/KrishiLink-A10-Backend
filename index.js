@@ -23,13 +23,27 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const krishiLink = client.db("KrishiLink");
-    const usersCollection = krishiLink.collection("users");
-    //find
-    app.get("/users", async (req, res) => {
-      const result = await usersCollection.find().toArray();
+    const homeCollection = krishiLink.collection("home");
+    const cropsCollection = krishiLink.collection("crops");
+    // find
+    app.get("/crops", async (req, res) => {
+      const result = await cropsCollection.find().toArray();
+      res.send(result);
+    });
+    app.get("/home", async (req, res) => {
+      const result = await homeCollection.find().toArray();
       res.send(result);
     });
 
+    app.post("/crops", async (req, res) => {
+      const data = req.body;
+      console.log(data);
+      const result = await cropsCollection.insertOne(data);
+      res.send({
+        success: true,
+        result,
+      });
+    });
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     // Send a ping to confirm a successful connection
