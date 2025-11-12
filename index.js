@@ -1,10 +1,8 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const port = 3000;
-
 app.use(cors());
 app.use(express.json());
 
@@ -29,6 +27,14 @@ async function run() {
     app.get("/crops", async (req, res) => {
       const result = await cropsCollection.find().toArray();
       res.send(result);
+    });
+    app.get("/crops/:id", async (req, res) => {
+      const id = req.params;
+      console.log(id.id);
+      const result = await cropsCollection.findOne({
+        _id: new ObjectId(id.id),
+      });
+      res.send({ success: true, result });
     });
     app.get("/home", async (req, res) => {
       const result = await homeCollection.find().toArray();
