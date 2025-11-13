@@ -23,11 +23,25 @@ async function run() {
     const krishiLink = client.db("KrishiLink");
     const homeCollection = krishiLink.collection("home");
     const cropsCollection = krishiLink.collection("crops");
+    const userPostCollection = krishiLink.collection("post");
     // find
     app.get("/crops", async (req, res) => {
       const result = await cropsCollection.find().toArray();
       res.send(result);
     });
+    // latest  6 crops
+    app.get("/latest-crops", async (req, res) => {
+      const result = await cropsCollection
+        .find()
+        .sort({
+          created_at: "desc",
+        })
+        .limit(6)
+        .toArray();
+      console.log(result);
+      res.send(result);
+    });
+
     app.get("/crops/:id", async (req, res) => {
       const id = req.params;
       console.log(id.id);
@@ -36,20 +50,17 @@ async function run() {
       });
       res.send({ success: true, result });
     });
-    app.get("/home", async (req, res) => {
-      const result = await homeCollection.find().toArray();
-      res.send(result);
-    });
 
-    app.post("/crops", async (req, res) => {
+    app.post("/post", async (req, res) => {
       const data = req.body;
       console.log(data);
-      const result = await cropsCollection.insertOne(data);
+      const result = await userPostCollection.insertOne(data);
       res.send({
         success: true,
         result,
       });
     });
+
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     // Send a ping to confirm a successful connection
