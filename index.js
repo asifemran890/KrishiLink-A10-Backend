@@ -21,7 +21,6 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const krishiLink = client.db("KrishiLink");
-    const homeCollection = krishiLink.collection("home");
     const cropsCollection = krishiLink.collection("crops");
     const userPostCollection = krishiLink.collection("post");
     const interestsCollection = krishiLink.collection("interests");
@@ -36,19 +35,6 @@ async function run() {
       res.send(result);
     });
 
-    // latest  6 crops
-    app.get("/latest-crops", async (req, res) => {
-      const result = await cropsCollection
-        .find()
-        .sort({
-          created_at: "desc",
-        })
-        .limit(6)
-        .toArray();
-      console.log(result);
-      res.send(result);
-    });
-
     app.get("/crops/:id", async (req, res) => {
       const id = req.params;
       console.log(id.id);
@@ -56,6 +42,14 @@ async function run() {
         _id: new ObjectId(id.id),
       });
       res.send({ success: true, result });
+    });
+    //  Search
+    app.get("/search", async (req, res) => {
+      const search_text = req.query.search;
+      const result = await cropsCollection
+        .find({ name: { $regex: search_text, $options: "i" } })
+        .toArray();
+      res.send(result);
     });
 
     // find
@@ -67,10 +61,53 @@ async function run() {
       const data = req.body;
       console.log(data);
       const result = await userPostCollection.insertOne(data);
+
       res.send({
         success: true,
         result,
       });
+      const result2 = await cropsCollection.insertOne(data);
+      res.send({
+        success: true,
+        result2,
+      });
+    });
+
+    //delete
+    app.delete("/post/:id", async (req, res) => {
+      const id = req.params;
+      console.log(id);
+      const result = await userPostCollection.deleteOne({
+        _id: new ObjectId(id),
+      });
+      res.send({ success: true, result });
+    });
+
+    // app.delete("/post/:id", async (req, res) => {
+    //   try {
+    //     await connectDB();
+    //     const { id } = req.params;
+    //     console.log(id);
+    //     const result = await userPostCollection.deleteOne({
+    //       _id: new ObjectId(id),
+    //     });
+    //     res.json(result);
+    //   } catch (error) {
+    //     res.status(500).json({ error: error.message });
+    //   }
+    // });
+
+    // latest  6 crops
+    app.get("/latest-post", async (req, res) => {
+      const result = await userPostCollection
+        .find()
+        .sort({
+          created_at: "desc",
+        })
+        .limit(6)
+        .toArray();
+      console.log(result);
+      res.send(result);
     });
 
     // Connect the client to the server	(optional starting in v4.7)
