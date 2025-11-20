@@ -22,7 +22,7 @@ async function run() {
   try {
     const krishiLink = client.db("KrishiLink");
     const cropsCollection = krishiLink.collection("crops");
-    const userPostCollection = krishiLink.collection("post");
+    const PostCollection = krishiLink.collection("post");
     const interestsCollection = krishiLink.collection("interests");
     // find
     app.get("/interests", async (req, res) => {
@@ -35,52 +35,46 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/crops/:id", async (req, res) => {
-      const id = req.params;
-      console.log(id.id);
-      const result = await cropsCollection.findOne({
-        _id: new ObjectId(id.id),
-      });
-      res.send({ success: true, result });
-    });
-    //  Search
-    app.get("/search", async (req, res) => {
-      const search_text = req.query.search;
-      const result = await cropsCollection
-        .find({ name: { $regex: search_text, $options: "i" } })
-        .toArray();
-      res.send(result);
-    });
-
     // find
     app.get("/post", async (req, res) => {
-      const result = await userPostCollection.find().toArray();
+      const result = await PostCollection.find().toArray();
       res.send(result);
     });
     app.post("/post", async (req, res) => {
       const data = req.body;
       console.log(data);
-      const result = await userPostCollection.insertOne(data);
-
+      const result = await PostCollection.insertOne(data);
       res.send({
         success: true,
         result,
       });
-      const result2 = await cropsCollection.insertOne(data);
-      res.send({
-        success: true,
-        result2,
+    });
+
+    app.get("/post/:id", async (req, res) => {
+      const { id } = req.params;
+      console.log(id);
+      const result = await PostCollection.findOne({
+        _id: new ObjectId(id),
       });
+      res.send({ success: true, result });
     });
 
     //delete
     app.delete("/post/:id", async (req, res) => {
       const id = req.params;
       console.log(id);
-      const result = await userPostCollection.deleteOne({
+      const result = await PostCollection.deleteOne({
         _id: new ObjectId(id),
       });
       res.send({ success: true, result });
+    });
+    //  Search
+    app.get("/search", async (req, res) => {
+      const search_text = req.query.search;
+      const result = await PostCollection.find({
+        name: { $regex: search_text, $options: "i" },
+      }).toArray();
+      res.send(result);
     });
 
     // app.delete("/post/:id", async (req, res) => {
