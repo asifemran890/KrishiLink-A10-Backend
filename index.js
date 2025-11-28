@@ -50,6 +50,19 @@ async function run() {
       });
     });
 
+     // latest  1 crops
+    app.get("/latest-postOne", async (req, res) => {
+      const result = await PostCollection
+        .find()
+        .sort({
+          created_at: "desc",
+        })
+        .limit(1)
+        .toArray();
+      console.log(result);
+      res.send(result);
+    });
+
     app.get("/post/:id", async (req, res) => {
       const { id } = req.params;
       console.log(id);
@@ -93,7 +106,7 @@ async function run() {
 
     // latest  6 crops
     app.get("/latest-post", async (req, res) => {
-      const result = await userPostCollection
+      const result = await PostCollection
         .find()
         .sort({
           created_at: "desc",
