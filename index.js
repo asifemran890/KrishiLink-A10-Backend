@@ -1,13 +1,19 @@
+// Import dependencies
 const express = require("express");
-const app = express();
 const cors = require("cors");
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const port = 3000;
-app.use(cors());
-app.use(express.json());
+const dayjs = require("dayjs");
 require("dotenv").config();
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+
+// Create app
+const app = express();
+const port = process.env.PORT || 3000;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ian57aj.mongodb.net/?appName=Cluster0`;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -17,124 +23,158 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
-
 async function run() {
   try {
-    const krishiLink = client.db("KrishiLink");
-    const cropsCollection = krishiLink.collection("crops");
-    const PostCollection = krishiLink.collection("post");
-    const interestsCollection = krishiLink.collection("interests");
-    // find
-    app.get("/interests", async (req, res) => {
-      const result = await interestsCollection.find().toArray();
-      res.send(result);
-    });
-    // find
-    app.get("/crops", async (req, res) => {
-      const result = await cropsCollection.find().toArray();
-      res.send(result);
-    });
-
-    // find
-    app.get("/post", async (req, res) => {
-      const result = await PostCollection.find().toArray();
-      res.send(result);
-    });
-    app.post("/post", async (req, res) => {
-      const data = req.body;
-      console.log(data);
-      const result = await PostCollection.insertOne(data);
-      res.send({
-        success: true,
-        result,
-      });
-    });
-
-     // latest  1 crops
-    app.get("/latest-postOne", async (req, res) => {
-      const result = await PostCollection
-        .find()
-        .sort({
-          created_at: "desc",
-        })
-        .limit(1)
-        .toArray();
-      console.log(result);
-      res.send(result);
-    });
-
-    app.get("/post/:id", async (req, res) => {
-      const { id } = req.params;
-      console.log(id);
-      const result = await PostCollection.findOne({
-        _id: new ObjectId(id),
-      });
-      res.send({ success: true, result });
-    });
-
-    //delete
-    app.delete("/post/:id", async (req, res) => {
-      const id = req.params;
-      console.log(id);
-      const result = await PostCollection.deleteOne({
-        _id: new ObjectId(id),
-      });
-      res.send({ success: true, result });
-    });
-    //  Search
-    app.get("/search", async (req, res) => {
-      const search_text = req.query.search;
-      const result = await PostCollection.find({
-        name: { $regex: search_text, $options: "i" },
-      }).toArray();
-      res.send(result);
-    });
-
-    // app.delete("/post/:id", async (req, res) => {
-    //   try {
-    //     await connectDB();
-    //     const { id } = req.params;
-    //     console.log(id);
-    //     const result = await userPostCollection.deleteOne({
-    //       _id: new ObjectId(id),
-    //     });
-    //     res.json(result);
-    //   } catch (error) {
-    //     res.status(500).json({ error: error.message });
-    //   }
-    // });
-
-    // latest  6 crops
-    app.get("/latest-post", async (req, res) => {
-      const result = await PostCollection
-        .find()
-        .sort({
-          created_at: "desc",
-        })
-        .limit(6)
-        .toArray();
-      console.log(result);
-      res.send(result);
-    });
-
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
+    const db = client.db("krishilink_DB");
+    const productCollections = db.collection("products");
+    const interestCollections = db.collection("interests");
+
+    // ---------------- products data start ----------------
+    //create user data on database
+    app.post("/products", async (req, res) => {
+      const newProduct = req.body;
+      newProduct.created_at = new Date();
+      newProduct.created_at_display = dayjs().format("MMM D, YYYY h:mm A");
+      const result = await productCollections.insertOne(newProduct);
+      res.send(result);
+    });
+
+    // get data on database
+    app.get("/products", async (req, res) => {
+      const email = req.query.email;
+      console.log(email);
+
+      const query = {};
+      if (email) {
+        query["owner.ownerEmail"] = email;
+      }
+
+      const cursor = productCollections.find(query).sort({ created_at: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+    //get product by id
+    app.get("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      console.log("id", id);
+
+      const query = { _id: new ObjectId(id) };
+      const result = await productCollections.findOne(query);
+      res.send(result);
+    });
+    // latest products
+    app.get("/latest-products", async (req, res) => {
+      const cursor = productCollections
+        .find()
+        .sort({ created_at: -1 })
+        .limit(8);
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // delete data on database
+    app.delete("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await productCollections.deleteOne(query);
+      res.send(result);
+    });
+    // update data on database
+    app.put("/products/:id", async (req, res) => {
+      const id = req.params.id;
+      const updateProduct = req.body;
+      console.log("updateProduct", updateProduct);
+
+      const query = { _id: new ObjectId(id) };
+      const update = {
+        $set: {
+          name: updateProduct.name,
+          type: updateProduct.type,
+          quantity: updateProduct.quantity,
+          unit: updateProduct.unit,
+          price: updateProduct.price,
+          description: updateProduct.description,
+          address: updateProduct.address,
+          image: updateProduct.image,
+        },
+      };
+      const result = await productCollections.updateOne(query, update);
+      res.send(result);
+    });
+    // ---------------- interests data start ----------------
+    app.post("/interests", async (req, res) => {
+      const { cropId, name, email, quantity, units, message, cropTitle } =
+        req.body;
+
+      if (!cropId || !quantity) {
+        return res.status(400).send({ message: "Missing required fields" });
+      }
+      const formattedDate = dayjs().format("MMM D, YYYY h:mm A");
+      const newInterest = {
+        cropId: new ObjectId(cropId),
+        name,
+        email,
+        quantity,
+        units,
+        message,
+        cropTitle,
+        status: "pending",
+        createdAt: formattedDate,
+      };
+
+      const result = await interestCollections.insertOne(newInterest);
+      res.send(result);
+    });
+    // get all interests
+    app.get("/interests", async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const cursor = interestCollections.find(query).sort({ createdAt: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    // get all interests
+    app.get("/all-interests/:cropId", async (req, res) => {
+      const cropId = req.params.cropId;
+      const cursor = interestCollections
+        .find({ cropId: new ObjectId(cropId) })
+        .sort({ createdAt: -1 });
+      const result = await cursor.toArray();
+      res.send(result);
+    });
+
+    app.patch("/interests/:id", async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
+      try {
+        const result = await interestCollections.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: status } }
+        );
+        res.send({ success: true, result });
+      } catch (error) {
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // -------------------------
     // Send a ping to confirm a successful connection
     // await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!"
-    );
+    console.log("✅ Successfully connected to MongoDB!");
   } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
   }
 }
 run().catch(console.dir);
 
+//default route
 app.get("/", (req, res) => {
-  res.send("Hello World!");
+  res.send("Your server is ready");
 });
 
+// Start server
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
+  console.log(`Server running : ${port}`);
 });
