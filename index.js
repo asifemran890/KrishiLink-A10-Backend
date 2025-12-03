@@ -7,7 +7,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Create app
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT ;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ian57aj.mongodb.net/?appName=Cluster0`;
 
@@ -103,7 +103,7 @@ async function run() {
       const result = await productCollections.updateOne(query, update);
       res.send(result);
     });
-    // ---------------- interests data start ----------------
+    // interests data start 
     app.post("/interests", async (req, res) => {
       const { cropId, name, email, quantity, units, message, cropTitle } =
         req.body;
