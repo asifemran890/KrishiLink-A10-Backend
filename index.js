@@ -1,19 +1,19 @@
-// Import dependencies
+require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const dayjs = require("dayjs");
-require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-
-// Create app
-const app = express();
 const port = process.env.PORT || 5000;
+const app = express();
+app.use(
+  cors({
+    origin: ["http://localhost:5173", "http://localhost:5174", ,],
+    credentials: true,
+    optionSuccessStatus: 200,
+  }),
+);
+app.use(express.json());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ian57aj.mongodb.net/?appName=Cluster0`;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
