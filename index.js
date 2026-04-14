@@ -7,7 +7,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Create app
 const app = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 5000;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ian57aj.mongodb.net/?appName=Cluster0`;
 
@@ -178,3 +178,5 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Server running : ${port}`);
 });
+
+module.exports = app;
