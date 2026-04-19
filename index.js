@@ -2,20 +2,28 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const port = process.env.PORT || 5000;
+const dayjs = require("dayjs");
+
 const app = express();
+const port = process.env.PORT || 5000;
+
+// ✅ Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5174", ,],
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5000",
+    ],
     credentials: true,
-    optionSuccessStatus: 200,
+    optionsSuccessStatus: 200,
   }),
 );
 app.use(express.json());
 
+// ✅ MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ian57aj.mongodb.net/?appName=Cluster0`;
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
@@ -23,87 +31,109 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
-    const db = client.db("krishilink_DB");
+
+    const db = client.db("krishilink");
     const productCollections = db.collection("products");
     const interestCollections = db.collection("interests");
 
-    // ---------------- products data start ----------------
-    //create user data on database
+    console.log("✅ Successfully connected to MongoDB!");
+
+    // ================= PRODUCTS =================
+
+    app.get("/products", async (req, res) => {
+      const email = req.query.email;
+
+      if (email) {
+        console.log("Email query:", email);
+      }
+
+      const query = email ? { "owner.ownerEmail": email } : {};
+
+      const result = await productCollections
+        .find(query)
+        .sort({ created_at: -1 })
+        .toArray();
+
+      res.send(result);
+    });
+
     app.post("/products", async (req, res) => {
       const newProduct = req.body;
+
       newProduct.created_at = new Date();
       newProduct.created_at_display = dayjs().format("MMM D, YYYY h:mm A");
+
       const result = await productCollections.insertOne(newProduct);
       res.send(result);
     });
 
-    // get data on database
-    app.get("/products", async (req, res) => {
-      const email = req.query.email;
-      console.log(email);
-
-      const query = {};
-      if (email) {
-        query["owner.ownerEmail"] = email;
-      }
-
-      const cursor = productCollections.find(query).sort({ created_at: -1 });
-      const result = await cursor.toArray();
-      res.send(result);
-    });
-    //get product by id
     app.get("/products/:id", async (req, res) => {
-      const id = req.params.id;
-      console.log("id", id);
+      try {
+        const id = req.params.id;
 
-      const query = { _id: new ObjectId(id) };
-      const result = await productCollections.findOne(query);
-      res.send(result);
+        const result = await productCollections.findOne({
+          _id: new ObjectId(id),
+        });
+
+        res.send(result);
+      } catch (error) {
+        res.status(400).send({ error: "Invalid ID format" });
+      }
     });
-    // latest products
+
     app.get("/latest-products", async (req, res) => {
-      const cursor = productCollections
+      const result = await productCollections
         .find()
         .sort({ created_at: -1 })
-        .limit(8);
-      const result = await cursor.toArray();
+        .limit(8)
+        .toArray();
+
       res.send(result);
     });
 
-    // delete data on database
     app.delete("/products/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await productCollections.deleteOne(query);
-      res.send(result);
+      try {
+        const result = await productCollections.deleteOne({
+          _id: new ObjectId(req.params.id),
+        });
+        res.send(result);
+      } catch {
+        res.status(400).send({ error: "Invalid ID" });
+      }
     });
-    // update data on database
-    app.put("/products/:id", async (req, res) => {
-      const id = req.params.id;
-      const updateProduct = req.body;
-      console.log("updateProduct", updateProduct);
 
-      const query = { _id: new ObjectId(id) };
-      const update = {
-        $set: {
-          name: updateProduct.name,
-          type: updateProduct.type,
-          quantity: updateProduct.quantity,
-          unit: updateProduct.unit,
-          price: updateProduct.price,
-          description: updateProduct.description,
-          address: updateProduct.address,
-          image: updateProduct.image,
-        },
-      };
-      const result = await productCollections.updateOne(query, update);
-      res.send(result);
+    app.put("/products/:id", async (req, res) => {
+      try {
+        const updateProduct = req.body;
+
+        const result = await productCollections.updateOne(
+          { _id: new ObjectId(req.params.id) },
+          {
+            $set: {
+              name: updateProduct.name,
+              type: updateProduct.type,
+              quantity: updateProduct.quantity,
+              unit: updateProduct.unit,
+              price: updateProduct.price,
+              description: updateProduct.description,
+              address: updateProduct.address,
+              image: updateProduct.image,
+            },
+          },
+        );
+
+        res.send(result);
+      } catch {
+        res.status(400).send({ error: "Invalid ID" });
+      }
     });
-    // interests data start
+
+    // ================= INTERESTS =================
+
     app.post("/interests", async (req, res) => {
       const { cropId, name, email, quantity, units, message, cropTitle } =
         req.body;
@@ -111,7 +141,7 @@ async function run() {
       if (!cropId || !quantity) {
         return res.status(400).send({ message: "Missing required fields" });
       }
-      const formattedDate = dayjs().format("MMM D, YYYY h:mm A");
+
       const newInterest = {
         cropId: new ObjectId(cropId),
         name,
@@ -121,62 +151,66 @@ async function run() {
         message,
         cropTitle,
         status: "pending",
-        createdAt: formattedDate,
+        createdAt: dayjs().format("MMM D, YYYY h:mm A"),
       };
 
       const result = await interestCollections.insertOne(newInterest);
       res.send(result);
     });
-    // get all interests
+
     app.get("/interests", async (req, res) => {
       const email = req.query.email;
-      const query = { email: email };
-      const cursor = interestCollections.find(query).sort({ createdAt: -1 });
-      const result = await cursor.toArray();
+
+      const query = email ? { email } : {};
+
+      const result = await interestCollections
+        .find(query)
+        .sort({ createdAt: -1 })
+        .toArray();
+
       res.send(result);
     });
 
-    // get all interests
     app.get("/all-interests/:cropId", async (req, res) => {
-      const cropId = req.params.cropId;
-      const cursor = interestCollections
-        .find({ cropId: new ObjectId(cropId) })
-        .sort({ createdAt: -1 });
-      const result = await cursor.toArray();
-      res.send(result);
+      try {
+        const result = await interestCollections
+          .find({ cropId: new ObjectId(req.params.cropId) })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(result);
+      } catch {
+        res.status(400).send({ error: "Invalid cropId" });
+      }
     });
 
     app.patch("/interests/:id", async (req, res) => {
-      const id = req.params.id;
-      const { status } = req.body;
       try {
+        const { status } = req.body;
+
         const result = await interestCollections.updateOne(
-          { _id: new ObjectId(id) },
-          { $set: { status: status } },
+          { _id: new ObjectId(req.params.id) },
+          { $set: { status } },
         );
+
         res.send({ success: true, result });
       } catch (error) {
         res.status(500).send({ error: error.message });
       }
     });
-
-    // -------------------------
-    // Send a ping to confirm a successful connection
-    // await client.db("admin").command({ ping: 1 });
-    console.log("✅ Successfully connected to MongoDB!");
   } finally {
+    // keep connection alive
   }
 }
+
 run().catch(console.dir);
 
-//default route
+// ================= ROOT =================
 app.get("/", (req, res) => {
   res.send("Your server is ready");
 });
 
-// Start server
+// ================= START SERVER =================
 app.listen(port, () => {
   console.log(`Server running : ${port}`);
 });
-
-module.exports = app;
